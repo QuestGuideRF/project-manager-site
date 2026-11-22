@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Менеджер проектов</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        // Применяем тему сразу при загрузке страницы
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'system';
+            if (savedTheme === 'system') {
+                const prefersDark = window.matchMedia('(предпочитает цветовую схему: темную)').matches;
+                document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+            } else {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            }
+        })();
+    </script>
+</head>
+<body>
+    <header class="top-bar">
+        <div class="search-container">
+            <input type="text" id="searchInput" class="search-input" placeholder="Поиск проектов...">
+        </div>
+        <button id="settingsBtn" class="settings-btn" title="Настройки">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"></path>
+            </svg>
+        </button>
+    </header>
+    <div class="filters-container">
+        <div id="filtersList" class="filters-list">
+            <button class="filter-chip active" data-filter="all">Все</button>
+        </div>
+    </div>
+    <main class="main-content">
+        <div id="projectsGrid" class="projects-grid">
+        </div>
+        <div id="emptyState" class="empty-state">
+            <h2 id="emptyStateTitle">Нет проектов</h2>
+            <p id="emptyStateText">Добавьте свой первый проект, чтобы начать работу</p>
+            <button id="addFirstProjectBtn" class="btn btn-primary">Добавить первый проект</button>
+        </div>
+    </main>
+    <button id="addProjectBtn" class="fab" title="Добавить проект">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+    </button>
+    <div id="addProjectModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Добавить проект</h2>
+                <button class="modal-close" id="closeAddModal">&раз;</button>
+            </div>
+            <form id="addProjectForm" class="modal-body">
+                <div class="form-group">
+                    <label for="projectFolder">Папка проекта *</label>
+                    <button type="button" id="selectFolderBtn" class="btn btn-secondary">Выбрать папку</button>
+                    <span id="selectedFolderPath" class="folder-path"></span>
+                    <small style="display: block; margin-top: 0.5rem; color: var(--text-secondary);">Название проекта будет автоматически взято из названия папки</small>
+                </div>
+                <input type="hidden" id="projectName">
+                <div class="form-group">
+                    <label for="mainFile">Главный файл (опционально)</label>
+                    <button type="button" id="selectMainFileBtn" class="btn btn-secondary">Выбрать файл</button>
+                    <span id="selectedMainFilePath" class="folder-path"></span>
+                </div>
+                <div class="form-group">
+                    <label for="projectPhoto">Превью (фото)</label>
+                    <input type="file" id="projectPhoto" accept="image/*">
+                    <div id="photoPreview" class="photo-preview"></div>
+                </div>
+                <div class="form-group">
+                    <label for="readmeFile">README.md</label>
+                    <button type="button" id="selectReadmeBtn" class="btn btn-secondary">Выбрать файл</button>
+                    <span id="selectedReadmePath" class="folder-path"></span>
+                    <textarea id="readmeTextarea" placeholder="Или введите описание вручную"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Фильтры (теги)</label>
+                    <div class="tags-container">
+                        <div id="existingTags" class="tags-list"></div>
+                        <div class="tag-input-container">
+                            <input type="text" id="newTagInput" placeholder="Добавить новый тег">
+                            <button type="button" id="addTagBtn" class="btn btn-small">Добавить</button>
+                        </div>
+                    </div>
+                    <div id="selectedTags" class="selected-tags"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="cancelAddBtn" class="btn btn-secondary">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="viewProjectModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="viewProjectTitle">Проект</h2>
+                <button class="modal-close" id="closeViewModal">&раз;</button>
+            </div>
+            <div class="modal-body view-project-body">
+                <button id="toggleFilesBtn" class="toggle-btn toggle-left" title="Показать файлы">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
+                <div id="filesPanel" class="files-panel">
+                    <div class="panel-header">
+                        <h3>Дерево файлов</h3>
+                        <button class="panel-close" id="closeFilesPanel">&раз;</button>
+                    </div>
+                    <div id="filesTree" class="files-tree"></div>
+                </div>
+                <div class="view-project-main">
+                    <div id="readmeContent" class="readme-content"></div>
+                </div>
+                <button id="toggleMenuBtn" class="toggle-btn toggle-right" title="Информация о проекте">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+                <div id="projectMenuPanel" class="project-menu-panel">
+                    <div class="panel-header">
+                        <h3>Информация</h3>
+                        <button class="panel-close" id="closeMenuPanel">&раз;</button>
+                    </div>
+                    <div id="projectMenuContent" class="project-menu-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Настройки</h2>
+                <button class="modal-close" id="closeSettingsModal">&раз;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="themeSelect">Тема</label>
+                    <select id="themeSelect">
+                        <option value="light">Светлая</option>
+                        <option value="dark">Темная</option>
+                        <option value="system">Системная</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Главная папка</label>
+                    <button type="button" id="selectMainFolderBtn" class="btn btn-secondary">Выбрать папку</button>
+                    <span id="mainFolderPath" class="folder-path"></span>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="cancelSettingsBtn" class="btn btn-secondary">Отмена</button>
+                    <button type="button" id="saveSettingsBtn" class="btn btn-primary">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
